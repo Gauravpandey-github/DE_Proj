@@ -43,11 +43,21 @@ def fetch_remoteok_data(api_url: str) -> pd.DataFrame | None:
 
         # Convert to DataFrame and clean data types
         df = pd.DataFrame(jobs_data)
-        df['date_posted'] = pd.to_datetime(df['date_posted'])
+        # Convert to datetime (force UTC if present, coerce invalid)
+        df['date_posted'] = pd.to_datetime(df['date_posted'], errors='coerce')
+
+        # Now remove timezone (tz-aware → tz-naive)
+        df['date_posted'] = df['date_posted'].dt.tz_localize(None)
+
+        df['id'] = df['id'].astype(str)
+        df['salary_min'] = pd.to_numeric(df['salary_min'], errors='coerce').fillna(0).astype(int)
+        df['salary_max'] = pd.to_numeric(df['salary_max'], errors='coerce').fillna(0).astype(int)
+
         df = df.where(pd.notnull(df), None) # Convert NaN to None for SQL NULL
 
         print("✅ Success: Fetched and prepared job data.")
         return df
+
 
     except requests.exceptions.RequestException as e:
         print(f"❌ API Error: {e}")
@@ -73,8 +83,6 @@ def get_db_connection(config_path: str) -> pyodbc.Connection | None:
             f"DRIVER={{ODBC Driver 17 for SQL Server}};"
             f"SERVER={db_config['server']};"
             f"DATABASE={db_config['database']};"
-            f"UID={db_config['username']};"
-            f"PWD={db_config['password']};"
             f"Trusted_Connection=yes;"
         )
         conn = pyodbc.connect(conn_str)
@@ -103,14 +111,14 @@ def load_data_to_sql(df: pd.DataFrame, conn: pyodbc.Connection):
         IF OBJECT_ID('RemoteOKJobs', 'U') IS NULL
         BEGIN
             CREATE TABLE RemoteOKJobs (
-                id BIGINT PRIMARY KEY,
+                id NVARCHAR(50) PRIMARY KEY,
                 date_posted DATETIME2,
                 company NVARCHAR(255),
                 position NVARCHAR(255),
                 location NVARCHAR(255),
                 tags NVARCHAR(MAX),
-                salary_min INT,
-                salary_max INT,
+                salary_min int,
+                salary_max int,
                 url NVARCHAR(MAX)
             )
         END
