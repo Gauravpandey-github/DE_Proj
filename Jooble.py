@@ -24,7 +24,7 @@ def fetch_jooble_data(api_key: str) -> pd.DataFrame:
     print("🚀 Starting: Fetching data from Jooble...")
     api_url = "https://jooble.org/api/" + api_key
     headers = {"Content-type": "application/json"}
-    body = {"keywords": "data engineer, python developer, software engineer, IT", "location": "United States, India"}
+    body = {"keywords": "Data engineer, Developer, software engineer, IT, AI, Data Analyst, Analyst", "location": "United States, India"}
 
     try:
         response = requests.post(api_url, json=body, headers=headers, timeout=15)
@@ -44,12 +44,26 @@ def fetch_jooble_data(api_key: str) -> pd.DataFrame:
         df['salary_max'] = df['salary_min']  # Duplicate salary_min as salary_max
 
         # Use a raw string for the regex to fix the SyntaxWarning
-        df['salary_min'] = df['salary_min'].astype(str).str.extract(r'(\d[\d,.]*)').replace(r'[^\d.]', '',
-                                                                                            regex=True).astype(
-            float).fillna(0).astype(int)
-        df['salary_max'] = df['salary_max'].astype(str).str.extract(r'(\d[\d,.]*)').replace(r'[^\d.]', '',
-                                                                                            regex=True).astype(
-            float).fillna(0).astype(int)
+        df['salary_max'] = (
+            df['salary_max']
+            .astype(str)
+            .str.extract(r'(\d[\d,.]*)')[0]  # take the first capture group
+            .str.replace(r'[^\d.]', '', regex=True)
+            .astype(float)  # explicitly cast
+            .fillna(0)
+            .astype(int)
+        )
+
+        df['salary_min'] = (
+            df['salary_min']
+            .astype(str)
+            .str.extract(r'(\d[\d,.]*)')[0]  # take the first capture group
+            .str.replace(r'[^\d.]', '', regex=True)
+            .astype(float)  # explicitly cast
+            .fillna(0)
+            .astype(int)
+        )
+
 
         required_cols = ['api_id', 'date_posted', 'company', 'position', 'location', 'tags', 'salary_min', 'salary_max',
                          'url']
